@@ -131,7 +131,7 @@ elementos más relevantes para completar la redacción de esta práctica.
 Recuerde realizar el *pull request* una vez completada la práctica.
 
 ### Comandos importantes:
-...
+*scripts/run_vad.sh* -> Ejecuta el Test vad
 
 Ejercicios
 ----------
