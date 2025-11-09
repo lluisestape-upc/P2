@@ -9,8 +9,10 @@ Options:
    -i FILE, --input-wav=FILE   WAVE file for voice activity detection
    -o FILE, --output-vad=FILE  Label file with the result of VAD
    -w FILE, --output-wav=FILE  WAVE file with silences cleared
-   -1 FLOAT, --alpha1=FLOAT    Offset for sound vs starting power [default: 9]
-   -2 FLoAT, --alpha2=FLOAT    Offset for silence vs starting power [default: 1.15]
+   -1 FLOAT, --alpha1=FLOAT    Offset for sound vs starting power [default: 8.15]
+   -2 FLOAT, --alpha2=FLOAT    Offset for silence vs starting power [default: 1.15]
+   -tv INT, --to-voice=INT    Frames needed (obeying voice rule) to change to voice [default: 8]
+   -ts INT, --to-silence=INT    Frames needed (obeying silence rule) to change to voice [default: 17]
    -v, --verbose  Show debug information
    -h, --help     Show this screen
    --version      Show the version of the project

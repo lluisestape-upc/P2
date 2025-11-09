@@ -23,7 +23,8 @@ int main(int argc, char *argv[]) {
   int frame_size;         /* in samples */
   float frame_duration;   /* in seconds */
   unsigned int t, last_t; /* in frames */
-  float alpha1, alpha2;
+  float alpha1, alpha2;   /* threshold offsets from first power level */
+  int to_voice_needed, to_silence_needed, maybe_voice_run, maybe_silence_run; /* frames needed (obeying same rules) to actually change state + frame count for UNDEF state */
 
   char	*input_wav, *output_vad, *output_wav;
 
@@ -35,6 +36,10 @@ int main(int argc, char *argv[]) {
   output_wav = args.output_wav;
   alpha1     = atof(args.alpha1);
   alpha2     = atof(args.alpha2);
+  to_voice_needed = atof(args.to_voice);
+  to_silence_needed = atof(args.to_silence);
+  maybe_voice_run = 0;
+  maybe_silence_run = 0;
 
   if (input_wav == 0 || output_vad == 0) {
     fprintf(stderr, "%s\n", args.usage_pattern);
@@ -84,16 +89,38 @@ int main(int argc, char *argv[]) {
       /* TODO: copy all the samples into sndfile_out */
     }
 
-    state = vad(vad_data, buffer, alpha1, alpha2);
+    state = vad(vad_data, buffer, alpha1, alpha2, &maybe_voice_run, &maybe_silence_run);
     if (verbose & DEBUG_VAD) vad_show_state(vad_data, stdout);
 
-    /* TODO: print only SILENCE and VOICE labels */
-    /* As it is, it prints UNDEF segments but is should be merge to the proper value */
     if (state != last_state) {
-      if (t != last_t)
-        fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration, state2str(last_state));
-      last_state = state;
-      last_t = t;
+      if (state == ST_UNDEF){ /* If we're in an UNDEF state...*/
+        if(last_state == ST_SILENCE){ /* If we were in silence, now it can be voice */
+          maybe_voice_run++;
+          if(maybe_voice_run == to_voice_needed && t != last_t){ /* If we reached the necessary num of frames... */
+            state = vad_data->state = ST_VOICE;
+            maybe_voice_run = 0;
+
+            fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, (t-(to_voice_needed-1)) * frame_duration, state2str(last_state)); /* Remember that the state actually changed "to_voice_needed" frames ago */
+            last_state = state;
+            last_t = t-(to_voice_needed-1);
+          }
+        }else{ /* If we were in voice, now it can be silence */
+          maybe_silence_run++;
+          if(maybe_silence_run == to_silence_needed && t != last_t){ /* If we reached the necessary num of frames... */
+            state = vad_data->state = ST_SILENCE;
+            maybe_silence_run = 0;
+
+            fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, (t-(to_silence_needed -1)) * frame_duration, state2str(last_state)); /* Remember that the state actually changed "to_silence_needed" frames ago */
+            last_state = state;
+            last_t = t-(to_silence_needed -1);
+          }
+        }
+      }else{ /* This only happens in the first loop, when we start with last_state=UNDEF and we automatically go to silence */
+        if (t != last_t) /* If we're not in the first stage (ST_INIT), when it's UNDEF */
+          fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration, state2str(last_state));
+        last_state = state;
+        last_t = t;
+      }
     }
 
     if (sndfile_out != 0) {
@@ -104,7 +131,7 @@ int main(int argc, char *argv[]) {
   state = vad_close(vad_data);
   /* TODO: what do you want to print, for last frames? */
   if (t != last_t)
-    fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(state));
+    fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(last_state));
 
   /* clean up: free memory, close open files */
   free(buffer);

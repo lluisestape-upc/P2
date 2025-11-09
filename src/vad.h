@@ -38,7 +38,7 @@ unsigned int vad_frame_size(VAD_DATA *);
 
     x: input frame
        It is assumed the length is frame_length */
-VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2);
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2, int *maybe_voice_run, int *maybe_silence_run);
 
 /* Free memory
    Returns the state of the last (undecided) states. */

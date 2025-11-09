@@ -80,7 +80,7 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  * using a Finite State Automata
  */
 
-VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2, int *maybe_voice_run, int *maybe_silence_run) {
 
   /* 
    * TODO: You can change this, using your own features,
@@ -90,24 +90,42 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
   Features f = compute_features(x, vad_data->frame_length);
   vad_data->last_feature = f.p; /* save feature, in case you want to show */
 
+  // Thresholds based on basic hysterisis, needs several frames obeying condition to change state (to_voice_needed, to_silence_needed)
   switch (vad_data->state) {
   case ST_INIT:
-    vad_data->p0 = f.p + alpha2;
-    vad_data->p1 = vad_data->p0 + alpha1;
+    vad_data->p0 = f.p + alpha2; // Upper threshold to silence (starting power + alpha2)
+    vad_data->p1 = vad_data->p0 + alpha1; // Lower threshold to voice (starting power + alpha2 + alpha1)
     vad_data->state = ST_SILENCE;
     break;
 
   case ST_SILENCE:
     if (f.p > vad_data->p1)
-      vad_data->state = ST_VOICE;
+      vad_data->state = ST_UNDEF;
     break;
 
   case ST_VOICE:
     if (f.p < vad_data->p0)
-      vad_data->state = ST_SILENCE;
+      vad_data->state = ST_UNDEF;
     break;
 
-  case ST_UNDEF:
+  // case ST_UNDEF: /* Return to previous state if we've stopped obeying the rule, if not stay in UNDEF. Returning to previous state won't write anything in the V/S report */
+  //   if (f.p < vad_data->p1 && *maybe_voice_run>0){ /* If we stopped obeying the MV rule and we were thinking it was voice... */
+  //     vad_data->state = ST_SILENCE;
+  //     *maybe_voice_run = 0;
+  //   }else if (f.p > vad_data->p0 && *maybe_silence_run>0){ /* If we stopped obeying the MS rule and we were thinking it was silence... */
+  //     vad_data->state = ST_VOICE;
+  //     *maybe_silence_run = 0;    
+  //   }
+  //   break;
+
+    case ST_UNDEF: /* Return to previous state if we've stopped obeying the rule, if not stay in UNDEF. Returning to previous state won't write anything in the V/S report */
+    if (f.p < vad_data->p0 && *maybe_voice_run>0){ /* If we now think it's silence and we were thinking it was voice... */
+      vad_data->state = ST_SILENCE;
+      *maybe_voice_run = 0;
+    }else if (f.p > vad_data->p1 && *maybe_silence_run>0){ /* If we now think it's voice and we were thinking it was silence... */
+      vad_data->state = ST_VOICE;
+      *maybe_silence_run = 0;    
+    }
     break;
   }
 
