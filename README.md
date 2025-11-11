@@ -4,11 +4,6 @@ PAV - P2: detección de actividad vocal (VAD)
 Lluis Estape Cusi & Pol Galvez Casasus
 --------------------------------------
 
-Esta práctica se distribuye a través del repositorio GitHub [Práctica 2](https://github.com/albino-pav/P2),
-y una parte de su gestión se realizará mediante esta web de trabajo colaborativo.  Al contrario que Git,
-GitHub se gestiona completamente desde un entorno gráfico bastante intuitivo. Además, está razonablemente
-documentado, tanto internamente, mediante sus [Guías de GitHub](https://guides.github.com/), como
-externamente, mediante infinidad de tutoriales, guías y vídeos disponibles gratuitamente en internet.
 
 
 Inicialización del repositorio de la práctica.
@@ -131,11 +126,14 @@ elementos más relevantes para completar la redacción de esta práctica.
 Recuerde realizar el *pull request* una vez completada la práctica.
 
 ### Comandos importantes:
-`scripts/run_vad.sh` -> Ejecuta el Test vad
-
-`meson bin; ninja -C bin` -> Compilar código (./bin/vad)
 
 `docopt_c/docopt_c.py src/vad.docopt -o src/vad_docopt.h` -> Actualizar docopt (argumentos de entrada y mensaje de ayuda)
+
+`meson bin; ninja -C bin` -> Compilar código (en ./bin/vad)
+
+`./bin/vad -i prueba.wav -o prueba.lab` -> Ejecuta el programa sobre un archivo .wav y obtén el output en un .lab
+
+`scripts/run_vad.sh` -> Ejecuta el Test vad
 
 Ejercicios
 ----------
@@ -146,15 +144,32 @@ Ejercicios
   continuación, una captura de `wavesurfer` en la que se vea con claridad la señal temporal, el contorno de
   potencia y la tasa de cruces por cero, junto con el etiquetado manual de los segmentos.
 
+![Captura Wavesurfer](img/wavesurfer_audio_nuestro.png)
+
+La señal temporal se ha mostrado con el panel "Waveform".
+
+La potencia (__negro__) y la tasa de cruces por cero (__rojo__) se han obtenido con el programa creado en la práctica anterior (medidas en _pav_4150.txt_) y mostrado con el panel "Data Plot".
+
+La transcripción (guardada en _pav_4150.lab_) se ha creado y mostrado con el panel "Transcription".
 
 - A la vista de la gráfica, indique qué valores considera adecuados para las magnitudes siguientes:
 
 	* Incremento del nivel potencia en dB, respecto al nivel correspondiente al silencio inicial, para
 	  estar seguros de que un segmento de señal se corresponde con voz.
 
+	En este audio parece que el nivel de silencio inicial no es el mejor para tomar cómo referencia, ya que sube durante los primeros 300ms. Si tomamos como referencia el valor del silencio a partir de ese _timestamp_, sí que podemos decir que el __incremento de nivel para estar seguros de que hay voz ha de ser de unos 15dB__ (S=-60dB / V>-45dB)
+
 	* Duración mínima razonable de los segmentos de voz y silencio.
 
+	Hay picos de potencia que no son voz (mirar final de la señal, segundo 7). Para no marcarlos como voz, podemos considerar que la __duración mínima de los segmentos de voz es de 150ms__ (p.ej. decir una letra rápido).
+
+	Para el silencio también pasa algo parecido: mientras hablamos hacemos mini pausas (con potencia muy baja, como en el segundo 1.6) que no deben considerarse como silencio. Viendo nuestra señal, podemos considerar que la __duración mínima de los segmentos de silencio ha de ser de unos 400ms__ (p.ej. pausa entre frases).
+
+	Ambos tiempos se han obtenido a ojo de la captura anterior y de manera intuitiva. Sus valores óptimos se obtendrán más tarde probándolos como argumentos de nuestro programa (archivo _som-hi.sh_)
+
 	* ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
+
+	Esta medida __no parece ayudarnos mucho__ para la obtención de los segmentos de Voz y Silencio, aunque parece ser una buena manera de detectar las mini-pausas (que NO debemos marcar como silencio) entre palabras (valores altos en la imagen).
 
 
 ### Desarrollo del detector de actividad vocal
@@ -162,14 +177,36 @@ Ejercicios
 - Complete el código de los ficheros de la práctica para implementar un detector de actividad vocal en
   tiempo real tan exacto como sea posible. Tome como objetivo la maximización de la puntuación-F `TOTAL`.
 
+Se ha intentado optimizar al máximo nuestro algoritmo para detectar actividad vocal usando los siguientes métodos:
+
+-> __Umbrales de histéresis__ (V -> S : potencia < p_ref + alpha2 | S -> V : potencia > p_ref + alpha2 + alpha1)
+
+<div style="text-align: center;">
+<img src="img/hysterisis.png" alt="hysterisis example" width="200"/>
+</div>
+
+-> Valor de referencia (__p_ref__) a partir de __inicialización con varios frames__
+
+-> __Tiempo mínimo de segmento__ para considerar finalmente un cambio de estado
+
+-> Siempre considerar __estado final como silencio__ (si estamos en ST_UNDEF pasamos siempre a ST_SILENCE)
+
+-> __Optimización de valores__ _alpha1, alpha2, to_voice, to_silence, to_init_ con un fichero .sh (_som-hi.sh_)
+
+En el código se pueden ver comentarios explicando cómo se ha implementado cada método.
+
 - Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección
   automática conseguida para el fichero grabado al efecto. 
 
 - Explique, si existen. las discrepancias entre el etiquetado manual y la detección automática.
 
+...
+
 - Evalúe los resultados sobre la base de datos `db.v4` con el script `vad_evaluation.pl` e inserte a 
   continuación las tasas de sensibilidad (*recall*) y precisión para el conjunto de la base de datos (sólo
   el resumen).
+
+![Captura Resultados vad_evaluation](img/resultados_vad_evaluation.png)
 
 
 ### Trabajos de ampliación
@@ -184,6 +221,8 @@ Ejercicios
 
 - Si ha usado `docopt_c` para realizar la gestión de las opciones y argumentos del programa `vad`, inserte
   una captura de pantalla en la que se vea el mensaje de ayuda del programa.
+
+![Captura Help para el programa vad](img/help_msg.png)
 
 
 ### Contribuciones adicionales y/o comentarios acerca de la práctica
