@@ -130,10 +130,14 @@ int main(int argc, char *argv[]) {
 
   state = vad_close(vad_data); /* Returns ST_SILENCE and frees vad_data */
 
-  /* We typically end in silence. If the last_state recorded wasn't ST_SILENCE, we were most surely in an uncompleted maybe_silence_run. Make those final UNDEF frames silence */
-  if (t != last_t && last_state!=ST_SILENCE){
-    fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, (t-(maybe_silence_run-1)) * frame_duration / (float) sf_info.samplerate, state2str(last_state));
+  /* We typically end in silence */
+  if (t != last_t){
+    if (last_state!=ST_SILENCE) { /* If the last_state recorded wasn't ST_SILENCE, we were most surely in an uncompleted maybe_silence_run. Make those final UNDEF frames silence */
+      fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, (t-(maybe_silence_run-1)) * frame_duration / (float) sf_info.samplerate, state2str(last_state));
     fprintf(vadfile, "%.5f\t%.5f\t%s\n", (t-(maybe_silence_run-1)) * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(state));
+    } else{ /* If the last state was ST_SILENCE, don't forget to report it! */
+      fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(last_state));
+    }
   }
 
   /* clean up: free memory, close open files */
