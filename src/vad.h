@@ -16,7 +16,8 @@ typedef struct {
   float sampling_rate;
   unsigned int frame_length;
   float last_feature; /* for debuggin purposes */
-  float p0, p1;
+  float p0, p1; /* Offset from reference silence to get V/S thresholds */
+  int init_count; /* INIT state count, to get mean reference for silence power value */
 } VAD_DATA;
 
 /* Call this function before using VAD: 
@@ -38,7 +39,7 @@ unsigned int vad_frame_size(VAD_DATA *);
 
     x: input frame
        It is assumed the length is frame_length */
-VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2, int *maybe_voice_run, int *maybe_silence_run);
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2, int *maybe_voice_run, int *maybe_silence_run, int to_init);
 
 /* Free memory
    Returns the state of the last (undecided) states. */

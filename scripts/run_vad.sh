@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# Lanzamos el test con "scripts/run_vad.sh $1 $2" ($1 y $2 son argumentos numéricos de entrada)
-ALPHA1=${1:-8.15} # ${1:-num} si queremos añadir un valor default
-ALPHA2=${2:-1.15} # ${2:-num} si queremos añadir un valor default
+# Lanzamos el test con "scripts/run_vad.sh $1 $2 $3 $4 $5" ($1 y $2 son argumentos numéricos de entrada)
+ALPHA1=${1:-8} # ${1:-num} si queremos añadir un valor default
+ALPHA2=${2:-1.3} # ${2:-num} si queremos añadir un valor default
 TO_VOICE=${3:-8}
 TO_SILENCE=${4:-17}
+TO_INIT=${5:-9}
 
 # Be sure that this file has execution permissions:
 # Use the nautilus explorer or chmod +x run_vad.sh
@@ -16,7 +17,7 @@ set -o pipefail
 # Write here the name and path of your program and database
 DIR_P2=$HOME/PAV/P2
 DB=$DIR_P2/db.v4
-CMD="$DIR_P2/bin/vad --alpha1 $ALPHA1 --alpha2 $ALPHA2 --to-voice $TO_VOICE --to-silence $TO_SILENCE" # Comando del script que se ejecutará
+CMD="$DIR_P2/bin/vad --alpha1 $ALPHA1 --alpha2 $ALPHA2 --to-voice $TO_VOICE --to-silence $TO_SILENCE --to-init $TO_INIT" # Comando del script que se ejecutará
 
 for filewav in $DB/*/*wav; do
 #    echo

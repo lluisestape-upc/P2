@@ -131,7 +131,11 @@ elementos más relevantes para completar la redacción de esta práctica.
 Recuerde realizar el *pull request* una vez completada la práctica.
 
 ### Comandos importantes:
-*scripts/run_vad.sh* -> Ejecuta el Test vad
+`scripts/run_vad.sh` -> Ejecuta el Test vad
+
+`meson bin; ninja -C bin` -> Compilar código (./bin/vad)
+
+`docopt_c/docopt_c.py src/vad.docopt -o src/vad_docopt.h` -> Actualizar docopt (argumentos de entrada y mensaje de ayuda)
 
 Ejercicios
 ----------

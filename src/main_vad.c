@@ -24,7 +24,9 @@ int main(int argc, char *argv[]) {
   float frame_duration;   /* in seconds */
   unsigned int t, last_t; /* in frames */
   float alpha1, alpha2;   /* threshold offsets from first power level */
-  int to_voice_needed, to_silence_needed, maybe_voice_run, maybe_silence_run; /* frames needed (obeying same rules) to actually change state + frame count for UNDEF state */
+  int to_voice_needed, to_silence_needed; /* frames needed (obeying same rules) to actually change state */
+  int maybe_voice_run, maybe_silence_run; /* frame count for UNDEF state */
+  int to_init; /* frames needed to initialize S power reference value */
 
   char	*input_wav, *output_vad, *output_wav;
 
@@ -40,6 +42,7 @@ int main(int argc, char *argv[]) {
   to_silence_needed = atof(args.to_silence);
   maybe_voice_run = 0;
   maybe_silence_run = 0;
+  to_init = atof(args.to_init);
 
   if (input_wav == 0 || output_vad == 0) {
     fprintf(stderr, "%s\n", args.usage_pattern);
@@ -86,10 +89,10 @@ int main(int argc, char *argv[]) {
     if  ((n_read = sf_read_float(sndfile_in, buffer, frame_size)) != frame_size) break;
 
     if (sndfile_out != 0) {
-      /* TODO: copy all the samples into sndfile_out */
+      /* TODO: before doing anything, copy all the samples into sndfile_out */
     }
 
-    state = vad(vad_data, buffer, alpha1, alpha2, &maybe_voice_run, &maybe_silence_run);
+    state = vad(vad_data, buffer, alpha1, alpha2, &maybe_voice_run, &maybe_silence_run, to_init);
     if (verbose & DEBUG_VAD) vad_show_state(vad_data, stdout);
 
     if (state != last_state) {
@@ -115,23 +118,23 @@ int main(int argc, char *argv[]) {
             last_t = t-(to_silence_needed -1);
           }
         }
-      }else{ /* This only happens in the first loop, when we start with last_state=UNDEF and we automatically go to silence */
-        if (t != last_t) /* If we're not in the first stage (ST_INIT), when it's UNDEF */
-          fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration, state2str(last_state));
+      }else if (state == ST_SILENCE){ /* This only happens after initialization, when we start with last_state=ST_UNDEF and we go from state=ST_INIT to state=ST_SILENCE */
         last_state = state;
-        last_t = t;
       }
     }
 
     if (sndfile_out != 0) {
-      /* TODO: go back and write zeros in silence segments */
+      /* TODO: go back necessary frames and write zeros in silence segments if we change to ST_VOICE */
     }
   }
 
-  state = vad_close(vad_data);
-  /* TODO: what do you want to print, for last frames? */
-  if (t != last_t)
-    fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(last_state));
+  state = vad_close(vad_data); /* Returns ST_SILENCE and frees vad_data */
+
+  /* We typically end in silence. If the last_state recorded wasn't ST_SILENCE, we were most surely in an uncompleted maybe_silence_run. Make those final UNDEF frames silence */
+  if (t != last_t && last_state!=ST_SILENCE){
+    fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, (t-(maybe_silence_run-1)) * frame_duration / (float) sf_info.samplerate, state2str(last_state));
+    fprintf(vadfile, "%.5f\t%.5f\t%s\n", (t-(maybe_silence_run-1)) * frame_duration, t * frame_duration + n_read / (float) sf_info.samplerate, state2str(state));
+  }
 
   /* clean up: free memory, close open files */
   free(buffer);
