@@ -6,6 +6,8 @@
 #include "vad.h"
 #include "vad_docopt.h"
 
+#include <unistd.h> /* To use excelp function (to execute in shell from .c script) */
+
 #define DEBUG_VAD 0x1
 
 int main(int argc, char *argv[]) {
@@ -90,7 +92,7 @@ int main(int argc, char *argv[]) {
     if  ((n_read = sf_read_float(sndfile_in, buffer, frame_size)) != frame_size) break;
 
     if (sndfile_out != 0) {
-      /* TODO: before doing anything, copy all the samples into sndfile_out */
+      /* Copy all the samples into sndfile_out */
       sf_write_float(sndfile_out, buffer, n_read);
     }
 
@@ -125,23 +127,6 @@ int main(int argc, char *argv[]) {
         last_state = state;
       }
     }
-
-    if (sndfile_out != 0) {
-      /* TODO: go back necessary frames and write zeros in silence segments if we change to ST_VOICE */
-      // If the state just changed to VOICE after UNDEF (that followed SILENCE)
-      if ((last_t = t-(to_voice_needed-1)) && last_state == ST_VOICE) { // We just marked the end of the silence segment
-          int samples_to_zero = silence_segments_before_voice;
-          printf("Writing zeros at frame t=%u\n", t);
-          // Seek backwards in the output file to the frames that were misclassified as silence
-          sf_seek(sndfile_out, -samples_to_zero, SEEK_CUR);
-          // Overwrite those frames with zeros (silence)
-          sf_write_float(sndfile_out, buffer_zeros, samples_to_zero);
-          // Set file pointer back to the end, ready for next frame
-          sf_seek(sndfile_out, 0, SEEK_END);
-          
-          silence_segments_before_voice = 0;
-      }
-    }
     
   }
 
@@ -161,10 +146,18 @@ int main(int argc, char *argv[]) {
   free(buffer_zeros);
   sf_close(sndfile_in);
   fclose(vadfile);
-  int ret = system("python3 src/silence_to_zeros.py"); //We execute the script to convert silences to zeros in the output wav
-  if (ret != 0) {
-      fprintf(stderr, "Error al ejecutar silence_to_zeros.py\n");
+
+  // We execute the script to convert silences to zeros in the output wav (if output .wav is included as argument)
+  if (output_wav) {
+    execlp("python3", "python3",
+       "src/silence_to_zeros.py",
+       "--input-wav", input_wav,
+       "--vad", output_vad,
+       "--out", output_wav,
+       (char *)NULL);
+
+    if (sndfile_out) sf_close(sndfile_out);
   }
-  if (sndfile_out) sf_close(sndfile_out);
+  
   return 0;
 }

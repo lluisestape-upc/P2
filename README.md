@@ -18,9 +18,16 @@ Lluis Estape Cusi & Pol Galvez Casasus
 
 `meson bin; ninja -C bin` -> Compilar código (en ./bin/vad)
 
-`./bin/vad -i prueba.wav -o prueba.lab` -> Ejecuta el programa sobre un archivo .wav y obtén el output en un .lab
+`./bin/vad -i prueba.wav -o prueba.vad -w [prueba_cancellation.wav]` -> Ejecuta el programa sobre un archivo .wav, obteniendo las etiquetas automáticas en un .vad y guardando el audio de salida (con silencio cancelado) en *prueba_cancellation.wav*
 
 `scripts/run_vad.sh` -> Ejecuta el Test vad
+
+### COMENTARIO IMPORTANTE
+Para la cancelación de ruido (si se incluye un archivo .wav de salida como argumento para `./bin/vad`) se ha usado un script de python, que se llama desde main_vad.c. Este archivo .py necesita las dependencias encontradas en `requirements.txt`.
+
+Por lo tanto, si se pretende usar el script `./bin/vad` con la cancelación de ruido, debemos instalar las dependencias necesarias para que funcione correctamente (a parte de compilar con `meson bin; ninja -C bin`).
+
+Si sólo queremos crear los labels (o usar `scripts/run_vad.sh`) no es necesarios usar python ni tener las dependencias instaladas.
 
 
 Ejercicios
@@ -38,7 +45,7 @@ La señal temporal se ha mostrado con el panel "Waveform".
 
 La potencia (__negro__) y la tasa de cruces por cero (__rojo__) se han obtenido con el programa ./p1 de la práctica anterior (medidas guardadas en _pav_4150.txt_) y mostrado con el panel "Data Plot".
 
-La transcripción (guardada en _pav_4150.vad_) se ha creado y mostrado con el panel "Transcription".
+La transcripción manual (guardada en _pav_4150.lab_) se ha creado y mostrado con el panel "Transcription".
 
 - A la vista de la gráfica, indique qué valores considera adecuados para las magnitudes siguientes:
 
@@ -86,7 +93,7 @@ En el código se pueden ver comentarios explicando cómo se ha implementado cada
 - Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección
   automática conseguida para el fichero grabado al efecto. 
 
-En este gráfico (hecho con matplotlib) se puede ver con claridad la diferencia entre el etiquetado manual (__verde__ -> archivo .vad) y la detección automática (__rojo__ -> archivo .lab).
+En este gráfico (script en `src/creacion_graficas/comparacion_labels.py`, usando matplotlib) se puede ver con claridad la diferencia entre el etiquetado manual (__verde__ -> _groundtruth_, archivo .lab) y la detección automática (__rojo__ -> _predicción_, archivo .vad).
 
 ![Comparación etiquetas](img/timestamps_comparison.png)
 
@@ -113,18 +120,19 @@ Por lo que hace a la detección de voz, podemos ver que en general coinciden las
   la que se vea con claridad la señal antes y después de la cancelación (puede que `wavesurfer` no sea la
   mejor opción para esto, ya que no es capaz de visualizar varias señales al mismo tiempo).
 
-Para cancelar el ruido en las partes donde no hay voz, se ha utilizado el archivo `.vad` que contiene los intervalos de tiempo donde se detecta silencio y voz.
+Para cancelar el ruido en las partes donde no hay voz, se ha creado un archivo .py por separado que trabaja a partir del archivo .vad generado. Al ejecutar `./bin/vad` ya se ejecuta el .py automáticamente al final de todo (después de generarse el etiquetado automático).
 
 El proceso seguido ha sido:
 
-- El main ejecuta un algoritmo que analiza el .vad que se crea.
-- Se abre el archivo para leer estos intervalos y, en el audio de salida, se sustituyen por ceros las muestras correspondientes a los segmentos de silencio del archivo wav de entrada.
+- Al inicio de `main_vad.c` se generan las etiquetas V/S y guardan en el archivo .vad correspondiente (como se ha explicado antes). Mientras se generan las etiquetas, se van copiano los _chunks_ en el archivo .wav de salida (tendremos el mismo audio que el de entrada).
+- Al final, desde ese mismo script, se lanza `silence_to_zeros.py` con los mismos argumentos de entrada.
+- En el script de python se abre el archivo .vad generado para leer estos intervalos y, en el audio de salida (que de momento es igual al de entrada), se sustituyen por ceros las muestras correspondientes a los segmentos de silencio del archivo wav de entrada.
 
 Así, el audio resultante mantiene únicamente las zonas de voz activas, eliminando el ruido presente en los silencios.
 
 <img width="1919" height="558" alt="Screenshot 2025-11-17 011306" src="https://github.com/user-attachments/assets/7a878c08-0d5b-49bd-bb00-ce1abb6c6d20" />
 
-La gráfica se obtiene a partir de un archivo .py para una mejor visualización.
+Esta gráfica se ha obtenido mediante el script `src/creacion_graficas/comparacion_waveforms.py`(usando matplotlib).
 
 #### Gestión de las opciones del programa usando `docopt_c`
 

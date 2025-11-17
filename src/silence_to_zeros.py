@@ -1,26 +1,22 @@
-import tkinter as tk
-from tkinter import filedialog
+import argparse
 import numpy as np
 import soundfile as sf
 import os
 
-def seleccionar_archivo(titulo, filtro):
-    root = tk.Tk()
-    root.withdraw()  # Oculta la ventana principal
-    file_path = filedialog.askopenfilename(title=titulo, filetypes=filtro)
-    return file_path
+parser = argparse.ArgumentParser(
+description="Plot waveform with .lab (red) and .vad (green) timestamps."
+)
+parser.add_argument("--input-wav", help="Input .wav file", default="pav_4150.wav")
+parser.add_argument("--vad", help=".vad file with automatically created timestamps", default="pav_4150.vad")
+parser.add_argument("--out", help="Output .wav file with noise cancellation", default="pav_4150_cancellation.wav")
 
-audio_file = seleccionar_archivo("Selecciona el archivo de audio (.wav)", [("Archivos WAV","*.wav"), ("Todos los archivos","*.*")])
-if not audio_file:
-    print("No se seleccionó ningún archivo de audio. Saliendo.")
-    exit(1)
+args = parser.parse_args()
 
-vad_file = seleccionar_archivo("Selecciona el archivo VAD (.vad)", [("Archivos VAD","*.vad"), ("Todos los archivos","*.*")])
-if not vad_file:
-    print("No se seleccionó ningún archivo VAD. Saliendo.")
-    exit(1)
+audio_file = args.input_wav
 
-output_file = "resultado_cancelado.wav"  # Puedes parametrizarlo también
+vad_file = args.vad
+
+output_file = args.out
 
 # === 1. Leer audio ===
 audio, fs = sf.read(audio_file)
