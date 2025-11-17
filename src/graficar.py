@@ -17,11 +17,11 @@ def calcular_rms_por_ventana(archivo_wav, frame_size=1024):
 
 # Carga de archivos
 data_original, sr_original = sf.read("pav_4150.wav")
-data_cancelado, sr_cancelado = sf.read("resultado_cancelado_con_silencios.wav")
+data_cancelado, sr_cancelado = sf.read("resultado_cancelado.wav")
 
 # Calcular RMS para ambas señales
 rms_original = calcular_rms_por_ventana("pav_4150.wav", frame_size=1024)
-rms_cancelado = calcular_rms_por_ventana("resultado_cancelado_con_silencios.wav", frame_size=1024)
+rms_cancelado = calcular_rms_por_ventana("resultado_cancelado.wav", frame_size=1024)
 
 plt.figure(figsize=(14, 12))
 
