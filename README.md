@@ -1,4 +1,4 @@
-PAV - P2: detección de actividad vocal (VAD)
+ PAV - P2: detección de actividad vocal (VAD)
 ============================================
 
 Lluis Estape Cusi & Pol Galvez Casasus
@@ -117,9 +117,8 @@ Para cancelar el ruido en las partes donde no hay voz, se ha utilizado el archiv
 
 El proceso seguido ha sido:
 
-- Durante el análisis de la señal, el programa detecta y etiqueta cada segmento como silencio o voz basándose en umbrales y duración mínima de segmentos.
-- Estas etiquetas se escriben en el archivo `.vad` en forma de intervalos temporales.
-- Después de cerrar el archivo `.vad`, se vuelve a abrir para leer estos intervalos y, en el audio de salida, se sustituyen por ceros las muestras correspondientes a los segmentos de silencio.
+- El main ejecuta un algoritmo que analiza el .vad que se crea.
+- Se abre el archivo para leer estos intervalos y, en el audio de salida, se sustituyen por ceros las muestras correspondientes a los segmentos de silencio del archivo wav de entrada.
 
 Así, el audio resultante mantiene únicamente las zonas de voz activas, eliminando el ruido presente en los silencios.
 
