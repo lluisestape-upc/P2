@@ -120,9 +120,8 @@ El proceso seguido ha sido:
 - Durante el análisis de la señal, el programa detecta y etiqueta cada segmento como silencio o voz basándose en umbrales y duración mínima de segmentos.
 - Estas etiquetas se escriben en el archivo `.vad` en forma de intervalos temporales.
 - Después de cerrar el archivo `.vad`, se vuelve a abrir para leer estos intervalos y, en el audio de salida, se sustituyen por ceros las muestras correspondientes a los segmentos de silencio.
-- Así, el audio resultante mantiene únicamente las zonas de voz activas, eliminando el ruido presente en los silencios.
 
-Este enfoque asegura una cancelación precisa y controlada del ruido, preservando la inteligibilidad y la integridad de la voz en la señal final.
+Así, el audio resultante mantiene únicamente las zonas de voz activas, eliminando el ruido presente en los silencios.
 
 <img width="1919" height="558" alt="Screenshot 2025-11-17 011306" src="https://github.com/user-attachments/assets/7a878c08-0d5b-49bd-bb00-ce1abb6c6d20" />
 
