@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
   int to_voice_needed, to_silence_needed; /* frames needed (obeying same rules) to actually change state */
   int maybe_voice_run, maybe_silence_run; /* frame count for UNDEF state */
   int to_init; /* frames needed to initialize S power reference value */
+  unsigned int silence_segments_before_voice = 0; /* to count samples that may need to be zeroed later */
 
   char	*input_wav, *output_vad, *output_wav;
 
@@ -90,6 +91,7 @@ int main(int argc, char *argv[]) {
 
     if (sndfile_out != 0) {
       /* TODO: before doing anything, copy all the samples into sndfile_out */
+      sf_write_float(sndfile_out, buffer, n_read);
     }
 
     state = vad(vad_data, buffer, alpha1, alpha2, &maybe_voice_run, &maybe_silence_run, to_init);
@@ -99,6 +101,7 @@ int main(int argc, char *argv[]) {
       if (state == ST_UNDEF){ /* If we're in an UNDEF state...*/
         if(last_state == ST_SILENCE){ /* If we were in silence, now it can be voice */
           maybe_voice_run++;
+          silence_segments_before_voice++; /* Count samples that may need to be zeroed later */
           if(maybe_voice_run == to_voice_needed && t != last_t){ /* If we reached the necessary num of frames... */
             state = vad_data->state = ST_VOICE;
             maybe_voice_run = 0;
@@ -125,6 +128,19 @@ int main(int argc, char *argv[]) {
 
     if (sndfile_out != 0) {
       /* TODO: go back necessary frames and write zeros in silence segments if we change to ST_VOICE */
+      // If the state just changed to VOICE after UNDEF (that followed SILENCE)
+      if ((last_t = t-(to_voice_needed-1)) && last_state == ST_VOICE) { // We just marked the end of the silence segment
+          int samples_to_zero = silence_segments_before_voice;
+          printf("Writing zeros at frame t=%u\n", t);
+          // Seek backwards in the output file to the frames that were misclassified as silence
+          sf_seek(sndfile_out, -samples_to_zero, SEEK_CUR);
+          // Overwrite those frames with zeros (silence)
+          sf_write_float(sndfile_out, buffer_zeros, samples_to_zero);
+          // Set file pointer back to the end, ready for next frame
+          sf_seek(sndfile_out, 0, SEEK_END);
+          
+          silence_segments_before_voice = 0;
+      }
     }
   }
 
