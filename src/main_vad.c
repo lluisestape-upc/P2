@@ -156,6 +156,60 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  //Zero out silence segments in the output WAV file if requested
+
+    if (output_wav && output_vad) {
+      SNDFILE *sndfile_rw = sf_open(output_wav, SFM_RDWR, &sf_info);
+      if (sndfile_rw == NULL) {
+          fprintf(stderr, "Error abriendo WAV output para modificar ceros: %s\n", output_wav);
+      } else {
+          FILE *vadfile_r = fopen(output_vad, "rt");
+          if (vadfile_r == NULL) {
+              fprintf(stderr, "Error abriendo archivo VAD para lectura: %s\n", output_vad);
+              sf_close(sndfile_rw);
+          } else {
+              char line[256];
+              float *zero_buffer = (float *)calloc(frame_size, sizeof(float));
+              if (!zero_buffer) {
+                  fprintf(stderr, "Error asignando memoria para buffer de ceros\n");
+                  fclose(vadfile_r);
+                  sf_close(sndfile_rw);
+              } else {
+                  while (fgets(line, sizeof(line), vadfile_r)) {
+                      float start_time, end_time;
+                      char state[16];
+                      if (sscanf(line, "%f %f %15s", &start_time, &end_time, state) != 3)
+                          continue;
+
+                      if (state[0] == 'S' || state[0] == 's') {
+                          sf_count_t sample_start = (sf_count_t)(start_time * sf_info.samplerate);
+                          sf_count_t sample_end = (sf_count_t)(end_time * sf_info.samplerate);
+                          if (sample_start < 0) sample_start = 0;
+                          if (sample_end > sf_info.frames) sample_end = sf_info.frames;
+                          sf_count_t total_samples = sample_end - sample_start;
+                          sf_count_t written = 0;
+
+                          // Seek to start sample
+                          sf_seek(sndfile_rw, sample_start, SEEK_SET);
+
+                          // Write zeros in chunks of frame_size
+                          while (written < total_samples) {
+                              sf_count_t block = (total_samples - written) > frame_size ? frame_size : (total_samples - written);
+                              sf_write_float(sndfile_rw, zero_buffer, block);
+                              written += block;
+                          }
+                      }
+                  }
+                  free(zero_buffer);
+                  fclose(vadfile_r);
+                  sf_close(sndfile_rw);
+              }
+          }
+      }
+    }
+
+  //
+  
   /* clean up: free memory, close open files */
   free(buffer);
   free(buffer_zeros);

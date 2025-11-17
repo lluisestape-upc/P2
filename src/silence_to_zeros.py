@@ -8,80 +8,82 @@ audio_file = "resultado_cancelado.wav"
 output_file = "resultado_cancelado_con_silencios.wav"
 
 # === 1. Leer audio ===
-audio, fs = sf.read(audio_file)   # audio puede ser mono o (N,2)
+audio, fs = sf.read(audio_file)
 num_samples = audio.shape[0]
 
-# === 2. Leer archivo VAD (más robusto) ===
+# === 2. Leer archivo VAD robusto ===
 segments = []
 with open(vad_file, "r") as f:
     for lineno, line in enumerate(f, start=1):
-        s = line.strip()
-        if not s:
+        line = line.strip()
+        if not line:
             continue
-        parts = s.split()
-        if len(parts) < 3:
-            # ignorar líneas mal formadas
-            print(f"Linea {lineno}: formato inesperado -> '{line.strip()}', se ignora")
+        
+        p = line.split()
+        if len(p) < 3:
+            print(f"Linea {lineno}: IGNORADA (formato incorrecto) → '{line}'")
             continue
+        
         try:
-            start = float(parts[0])
-            end = float(parts[1])
-            label = parts[2].upper()
-        except ValueError:
-            print(f"Linea {lineno}: no se pueden convertir tiempos -> '{line.strip()}', se ignora")
+            start = float(p[0])
+            end = float(p[1])
+            label = p[2].strip().upper()
+        except:
+            print(f"Linea {lineno}: ERROR parseando → '{line}'")
             continue
-
-        # Si start > end, invertirlos (corrección común)
+        
+        # Si vienen al revés: corregir
         if start > end:
             start, end = end, start
-
-        # recortar a límites validos
-        start = max(0.0, start)
-        end = max(0.0, end)
-
-        # ignorar segmentos nulos
+        
+        # Validación
         if end <= start:
-            print(f"Linea {lineno}: segmento vacío tras validación -> start={start}, end={end}, se ignora")
+            print(f"Linea {lineno}: segmento cero → {start} {end}")
             continue
-
+        
         segments.append((start, end, label))
 
-if not segments:
-    print("No se han leído segmentos válidos desde el .vad. Revisa el fichero.")
-else:
-    print(f"Leídos {len(segments)} segmentos desde '{vad_file}'")
+print(f"\nVAD cargado: {len(segments)} segmentos\n")
 
 # === 3. Aplicar silencios ===
-audio_muted = np.copy(audio)
+audio_muted = audio.copy()
+silenced = 0
 
-silenced_count = 0
-for (start, end, label) in segments:
-    if label == "S":   # silenciar segmentos marcados como silencio
-        # convertir a índices de muestra (usar round para mayor exactitud)
-        start_idx = int(round(start * fs))
-        end_idx = int(round(end * fs))
+for i, (start, end, label) in enumerate(segments):
+    if label != "S":
+        continue
+    
+    # Tiempos a muestras
+    start_idx = int(np.floor(start * fs))
+    end_idx = int(np.ceil(end * fs))
 
-        # proteger rangos válidos
-        start_idx = max(0, min(start_idx, num_samples))
-        end_idx = max(0, min(end_idx, num_samples))
+    print(f"[SEG {i}] S   t={start:.5f}→{end:.5f}   idx={start_idx}→{end_idx}   (num_samples={num_samples})")
+    
+    # Clampear siempre
+    if start_idx < 0: start_idx = 0
+    if start_idx > num_samples: start_idx = num_samples
+    if end_idx < 0: end_idx = 0
+    if end_idx > num_samples: end_idx = num_samples
 
-        if end_idx <= start_idx:
-            # si tras ajuste quedan mal, lo informamos y saltamos
-            print(f"Ignorado segmento S con índices inválidos: start_idx={start_idx}, end_idx={end_idx}")
-            continue
-
-        # aplicar cero (funciona para mono y estéreo)
-        if audio.ndim == 1:
-            audio_muted[start_idx:end_idx] = 0.0
+    # --- FIX DEFINITIVO ---
+    # Si start_idx == end_idx, meter al menos 1 muestra
+    if start_idx == end_idx:
+        print("  >> FIX aplicado: slice vacío, extensión forzada")
+        if end_idx < num_samples:
+            end_idx += 1
         else:
-            audio_muted[start_idx:end_idx, :] = 0.0
+            start_idx = max(0, start_idx - 1)
 
-        silenced_count += 1
-        print(f"Silenciado: {start:.5f}s -> {end:.5f}s  => samples {start_idx}:{end_idx}")
+    # Aplicar mute
+    if audio.ndim == 1:
+        audio_muted[start_idx:end_idx] = 0
+    else:
+        audio_muted[start_idx:end_idx, :] = 0
 
-print(f"Segmentos silenciados aplicados: {silenced_count}")
+    silenced += 1
 
-# === 4. Guardar resultado ===
-# Si el fichero existe, lo sobrescribimos
+print(f"\nSilencios aplicados: {silenced}")
+
+# === 4. Guardar ===
 sf.write(output_file, audio_muted, fs)
-print("Archivo generado:", os.path.abspath(output_file))
+print("\nArchivo generado:", os.path.abspath(output_file))
